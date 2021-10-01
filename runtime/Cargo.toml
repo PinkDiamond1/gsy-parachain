@@ -20,6 +20,7 @@ serde = { version = '1.0.119', optional = true, features = ['derive'] }
 
 # Local Dependencies
 template = { package = 'pallet-template', path = '../pallets/template', default-features = false }
+verifier = { package = 'pallet-verifier', path = '../pallets/verifier', default-features = false }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -120,4 +121,5 @@ std = [
 	"pallet-aura/std",
 	"sp-consensus-aura/std",
 	'template/std',
+	'verifier/std',
 ]

@@ -5,6 +5,7 @@
 **/*.rs.bk
 
 .DS_Store
+Cargo.lock
 
 # The cache for docker container dependency
 .cargo
@@ -13,3 +14,4 @@
 .local
 
 local-test
+*.lock
