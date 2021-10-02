@@ -23,15 +23,16 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, match_type, parameter_types,
-	traits::{Everything, IsInVec, Randomness},
+	traits::{Everything, IsInVec, Randomness, Nothing},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, IdentityFee, Weight,
 	},
 	StorageValue,
 };
-use frame_system::limits::{BlockLength, BlockWeights};
+pub use frame_system::limits::{BlockLength, BlockWeights};
 pub use pallet_balances::Call as BalancesCall;
+pub use pallet_contracts::weights::WeightInfo;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 #[cfg(any(feature = "std", test))]
@@ -135,6 +136,16 @@ pub const EPOCH_DURATION_IN_BLOCKS: u32 = 10 * MINUTES;
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
 pub const DAYS: BlockNumber = HOURS * 24;
+
+// Contracts price units.
+pub const MILLICENTS: Balance = 1_000_000_000;
+pub const CENTS: Balance = 1_000 * MILLICENTS;
+pub const DOLLARS: Balance = 100 * CENTS;
+
+// TODO
+const fn deposit(items: u32, bytes: u32) -> Balance {
+ 	items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
+}
 
 // 1 in 4 blocks (on average, not counting collisions) will be primary babe blocks.
 pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
@@ -441,8 +452,70 @@ impl pallet_aura::Config for Runtime {
 	type DisabledValidators = ();
 }
 
+parameter_types! {
+	pub TombstoneDeposit: Balance = deposit(
+		1,
+		<pallet_contracts::Pallet<Runtime>>::contract_info_size()
+	);
+	pub DepositPerContract: Balance = TombstoneDeposit::get();
+	pub const DepositPerStorageByte: Balance = deposit(0, 1);
+	pub const DepositPerStorageItem: Balance = deposit(1, 0);
+	pub RentFraction: Perbill = Perbill::from_rational(1u32, 30 * DAYS);
+	pub const SurchargeReward: Balance = 150 * MILLICENTS;
+	pub const SignedClaimHandicap: u32 = 2;
+	pub const MaxValueSize: u32 = 16 * 1024;
+	// The lazy deletion runs inside on_initialize.
+	// TODO - why does not compile? Figure out the type mismatch.
+	pub DeletionWeightLimit: Weight = 1000_000_000;
+	// pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
+	// 	 BlockWeights::get().max_block;
+
+	// The weight needed for decoding the queue should be less or equal than a fifth
+	// of the overall weight dedicated to the lazy deletion.
+	pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get() / (
+		<Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(1) -
+		<Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(0)
+	 )) / 5) as u32;
+   
+	pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
+}
+   
+impl pallet_contracts::Config for Runtime {
+	type Time = Timestamp;
+	type Randomness = RandomnessCollectiveFlip;
+	type Currency = Balances;
+	type Event = Event;
+	type RentPayment = ();
+	type SignedClaimHandicap = SignedClaimHandicap;
+	type TombstoneDeposit = TombstoneDeposit;
+	type DepositPerContract = DepositPerContract;
+	type DepositPerStorageByte = DepositPerStorageByte;
+	type DepositPerStorageItem = DepositPerStorageItem;
+	type RentFraction = RentFraction;
+	type SurchargeReward = SurchargeReward;
+	type WeightPrice = pallet_transaction_payment::Module<Self>;
+	type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
+	type ChainExtension = ();
+	type DeletionQueueDepth = DeletionQueueDepth;
+	type DeletionWeightLimit = DeletionWeightLimit;
+	type Call = Call;
+	/// The safest default is to allow no calls at all.
+	///
+	/// Runtimes should whitelist dispatchables that are allowed to be called from contracts
+	/// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
+	/// change because that would break already deployed contracts. The `Call` structure itself
+	/// is not allowed to change the indices of existing pallets, too.
+	type CallFilter = Nothing;
+	type Schedule = Schedule;
+	type CallStack = [pallet_contracts::Frame<Self>; 31];
+}
+
 /// Configure the pallet template in pallets/template.
 impl template::Config for Runtime {
+	type Event = Event;
+}
+
+impl verifier::Config for Runtime {
 	type Event = Event;
 }
 
@@ -465,6 +538,8 @@ construct_runtime!(
 
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 30,
 
+		Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>},
+
 		Aura: pallet_aura::{Pallet, Config<T>},
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Config},
 
@@ -476,6 +551,7 @@ construct_runtime!(
 
 		//Template
 		TemplatePallet: template::{Pallet, Call, Storage, Event<T>},
+		VerifierPallet: verifier::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

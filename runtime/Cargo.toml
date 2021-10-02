@@ -48,6 +48,8 @@ frame-system-rpc-runtime-api = { git = 'https://github.com/paritytech/substrate'
 ## Substrate Pallet Dependencies
 pallet-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9", default-features = false }
 pallet-balances = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.9', default-features = false }
+pallet-contracts = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.9', default-features = false }
+pallet-contracts-primitives = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.9', default-features = false }
 pallet-randomness-collective-flip = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.9', default-features = false }
 pallet-sudo = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.9', default-features = false }
 pallet-timestamp = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.9', default-features = false }
@@ -103,6 +105,8 @@ std = [
 	"frame-executive/std",
 	"frame-system/std",
 	"pallet-balances/std",
+	"pallet-contracts/std",
+	"pallet-contracts-primitives/std",
 	"pallet-randomness-collective-flip/std",
 	"pallet-timestamp/std",
 	"pallet-sudo/std",
@@ -120,6 +124,6 @@ std = [
 	"xcm-executor/std",
 	"pallet-aura/std",
 	"sp-consensus-aura/std",
-	'template/std',
-	'verifier/std',
+	"template/std",
+	"verifier/std",
 ]
