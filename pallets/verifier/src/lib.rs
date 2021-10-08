@@ -13,7 +13,7 @@ mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+	use frame_support::{pallet_prelude::*};
 	use frame_system::{ensure_signed, pallet_prelude::*};
     use frame_support::{
         traits::{Get}, 
